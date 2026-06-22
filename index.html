@@ -3,47 +3,42 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>UX4G Theme Craft — Eyedropper helper</title>
+  <title>UX4G Eyedropper</title>
   <style>
-    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
-    #hit {
-      display: block; width: 100%; height: 100%;
-      margin: 0; padding: 0; border: 0;
-      background: transparent; cursor: pointer;
-      -webkit-appearance: none; appearance: none;
-    }
+    body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 16px; background: #fff; color: #1e1e1e; }
+    #pick { font-size: 15px; padding: 10px 16px; border: 0; border-radius: 8px; background: #6A4EFF; color: #fff; cursor: pointer; width: 100%; }
+    #status { font-size: 12px; color: #6b6b6b; margin-top: 10px; line-height: 1.5; word-break: break-word; }
+    .err { color: #c0392b; }
   </style>
 </head>
 <body>
-  <button id="hit" type="button" aria-label="Sample a colour with the eyedropper"></button>
+  <button id="pick">Pick a colour</button>
+  <div id="status"></div>
   <script>
     (function () {
-      var btn = document.getElementById('hit');
-      function post(msg) { try { parent.postMessage(msg, '*'); } catch (e) {} }
+      var statusEl = document.getElementById('status');
+      var btn = document.getElementById('pick');
+      var hasED = (typeof window.EyeDropper === 'function');
+      function setStatus(t, isErr) { statusEl.textContent = t; statusEl.className = isErr ? 'err' : ''; }
+      function back(msg) { try { if (window.opener) window.opener.postMessage(msg, '*'); } catch (e) {} }
 
-      // Diagnostics (console.error so Figma's console silencing can't hide them).
-      console.error('[ED-HELPER] loaded; secureContext=' + window.isSecureContext +
-                    '; EyeDropper=' + (typeof window.EyeDropper));
-      post({ type: 'eyedropper-diag', stage: 'load',
-             secure: window.isSecureContext,
-             hasEyeDropper: (typeof window.EyeDropper === 'function') });
+      setStatus('secureContext=' + window.isSecureContext + ' · EyeDropper=' + (hasED ? 'yes' : 'no') + ' · opener=' + (window.opener ? 'yes' : 'no'));
 
-      btn.addEventListener('click', async function () {
-        console.error('[ED-HELPER] click; EyeDropper=' + (typeof window.EyeDropper));
+      async function pick() {
         if (typeof window.EyeDropper !== 'function') {
-          post({ type: 'eyedropper-error', reason: 'unsupported', secure: window.isSecureContext });
+          setStatus('EyeDropper unavailable here (secureContext=' + window.isSecureContext + ')', true);
           return;
         }
         try {
           var ed = new window.EyeDropper();
           var res = await ed.open();
           var hex = String(res.sRGBHex || '').toUpperCase();
-          console.error('[ED-HELPER] picked ' + hex);
-          if (/^#[0-9A-F]{6}$/.test(hex)) post({ type: 'eyedropper-result', hex: hex });
-        } catch (e) {
-          console.error('[ED-HELPER] open() failed: ' + (e && e.message ? e.message : e));
-        }
-      });
+          if (/^#[0-9A-F]{6}$/.test(hex)) { back({ type: 'eyedropper-result', hex: hex }); window.close(); }
+        } catch (e) { setStatus('Cancelled or failed: ' + (e && e.message ? e.message : e), true); }
+      }
+      btn.addEventListener('click', pick);
+      // Try once automatically in case the click activation carried through window.open (1-click UX).
+      if (hasED) pick();
     })();
   </script>
 </body>
