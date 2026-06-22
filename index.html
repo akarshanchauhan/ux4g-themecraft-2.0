@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UX4G Theme Craft — Eyedropper helper</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
+    #hit {
+      display: block; width: 100%; height: 100%;
+      margin: 0; padding: 0; border: 0;
+      background: transparent; cursor: pointer;
+      -webkit-appearance: none; appearance: none;
+    }
+  </style>
+</head>
+<body>
+  <button id="hit" type="button" aria-label="Sample a colour with the eyedropper"></button>
+  <script>
+    (function () {
+      var btn = document.getElementById('hit');
+      function post(msg) { try { parent.postMessage(msg, '*'); } catch (e) {} }
+      btn.addEventListener('click', async function () {
+        if (typeof window.EyeDropper !== 'function') {
+          post({ type: 'eyedropper-error', reason: 'unsupported' });
+          return;
+        }
+        try {
+          var ed = new window.EyeDropper();
+          var res = await ed.open();
+          var hex = String(res.sRGBHex || '').toUpperCase();
+          if (/^#[0-9A-F]{6}$/.test(hex)) post({ type: 'eyedropper-result', hex: hex });
+        } catch (e) { /* user cancelled */ }
+      });
+    })();
+  </script>
+</body>
+</html>
